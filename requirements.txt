@@ -1,0 +1,8 @@
+openai>=1.0.0
+requests>=2.31.0
+bs4
+botasaurus-driver
+fake_useragent
+PyQt5 ; extra == 'gui'
+tqdm
+pillow
