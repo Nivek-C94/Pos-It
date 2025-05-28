@@ -1,5 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog
+from PyQt5.QtWidgets import QTextEdit
 
 
 class PosItApp(QWidget):
@@ -9,33 +10,47 @@ class PosItApp(QWidget):
         self.setGeometry(200, 200, 400, 300)
 
         self.label = QLabel("📸 Upload a product image to begin")
-        self.upload_button = QPushButton("Upload Image")
+        self.output_label = QTextEdit("\nWaiting for image...")
+        self.output_label.setReadOnly(True)
         self.upload_button.clicked.connect(self.upload_image)
 
-        self.output_label = QLabel("\nWaiting for image...")
+        self.post_button = QPushButton("Post")
+        self.post_button.clicked.connect(self.post_listing)
+        self.post_button.setEnabled(False)
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
         layout.addWidget(self.upload_button)
-        layout.addWidget(self.output_label)
+        layout.addWidget(self.post_button)
 
         self.setLayout(layout)
 
-    def upload_image(self):
+        from services.listing_agent import process_image_and_generate_listing
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open Image File", "", "Images (*.png *.xpm *.jpg *.jpeg)")
-        from services.image_search import reverse_image_search
-        from services.chatgpt_client import ChatGPTClient
+        if file_name:
+            self.image_path = file_name
+            try:
+                self.listing_data = process_image_and_generate_listing(
+                    self.image_path)
+                display = "\n".join(
+                    [f"{k}: {v}" for k, v in self.listing_data.items()])
+                self.output_label.setText(
+                    f"\n📄 Generated Listing Info:\n\n{display}")
+                self.post_button.setEnabled(True)
+            except Exception as e:
+                self.output_label.setText(f"❌ Error: {str(e)}")
+                self.post_button.setEnabled(False)
 
-        context = reverse_image_search(file_name)
-        chatgpt = ChatGPTClient()
+    def post_listing(self):
+        from services.listing_agent import post_listing_to_all
         try:
-            result_json = chatgpt.generate_listing_info(context)
-            self.output_label.setText(
-                f"\n📄 Generated Listing Info:\n\n{result_json}")
+            results = post_listing_to_all(self.listing_data, [self.image_path])
+            status = "\n\n✅ Post Results:\n" + \
+                "\n".join([f"{k}: {v}" for k, v in results.items()])
+            self.output_label.append(status)
         except Exception as e:
-            self.output_label.setText(f"❌ GPT error: {str(e)}")
-            # TODO: Display generated title/price/description
+            self.output_label.append(f"\n❌ Posting failed: {str(e)}")
 
 
 if __name__ == "__main__":
