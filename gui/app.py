@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog
 
+
 class PosItApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -21,11 +22,21 @@ class PosItApp(QWidget):
         self.setLayout(layout)
 
     def upload_image(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Image File", "", "Images (*.png *.xpm *.jpg *.jpeg)")
-        if file_name:
-            self.output_label.setText(f"✅ Selected: {file_name}\nProcessing...")
-            # TODO: Call reverse_image_search, chatgpt_client
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Open Image File", "", "Images (*.png *.xpm *.jpg *.jpeg)")
+        from services.image_search import reverse_image_search
+        from services.chatgpt_client import ChatGPTClient
+
+        context = reverse_image_search(file_name)
+        chatgpt = ChatGPTClient()
+        try:
+            result_json = chatgpt.generate_listing_info(context)
+            self.output_label.setText(
+                f"\n📄 Generated Listing Info:\n\n{result_json}")
+        except Exception as e:
+            self.output_label.setText(f"❌ GPT error: {str(e)}")
             # TODO: Display generated title/price/description
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
