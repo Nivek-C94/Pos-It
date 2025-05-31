@@ -34,14 +34,14 @@ class PosItApp(QWidget):
 
     def upload_image(self):
         from services.listing_agent import process_image_and_generate_listing
-        file_name, _ = QFileDialog.getOpenFileName(
-            self, "Open Image File", "", "Images (*.png *.xpm *.jpg *.jpeg)")
-        if file_name:
-            self.image_path = file_name
-            self.update_image_preview(file_name)
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "Select Images", "", "Images (*.png *.xpm *.jpg *.jpeg)")
+        if files:
+            self.image_paths = files
+            self.update_image_preview(files[0])
             try:
                 self.listing_data = process_image_and_generate_listing(
-                    self.image_path)
+                    files[0])
                 display = "\n".join(
                     [f"{k}: {v}" for k, v in self.listing_data.items()])
                 self.output_label.setText(
@@ -58,7 +58,7 @@ class PosItApp(QWidget):
     def post_listing(self):
         from services.listing_agent import post_listing_to_all
         try:
-            results = post_listing_to_all(self.listing_data, [self.image_path])
+            results = post_listing_to_all(self.listing_data, self.image_paths)
             status = "\n\n✅ Post Results:\n" + \
                 "\n".join([f"{k}: {v}" for k, v in results.items()])
             self.output_label.append(status)
