@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog, QTextEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QTextEdit
 
 
 class PosItApp(QWidget):
@@ -17,7 +17,7 @@ class PosItApp(QWidget):
         self.image_preview.setFixedHeight(150)
         self.image_preview.setScaledContents(True)
 
-        self.upload_button = QPushButton("Upload Image")
+        self.thumb_layout = QHBoxLayout()
         self.upload_button.clicked.connect(self.upload_image)
 
         self.post_button = QPushButton("Post")
@@ -26,7 +26,7 @@ class PosItApp(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
-        layout.addWidget(self.upload_button)
+        layout.addLayout(self.thumb_layout)
         layout.addWidget(self.image_preview)
         layout.addWidget(self.output_label)
         layout.addWidget(self.post_button)
@@ -38,6 +38,7 @@ class PosItApp(QWidget):
             self, "Select Images", "", "Images (*.png *.xpm *.jpg *.jpeg)")
         if files:
             self.image_paths = files
+            self.load_thumbnails()
             self.update_image_preview(files[0])
             try:
                 self.listing_data = process_image_and_generate_listing(
@@ -51,9 +52,36 @@ class PosItApp(QWidget):
                 self.output_label.setText(f"❌ Error: {str(e)}")
                 self.post_button.setEnabled(False)
 
-    def update_image_preview(self, path):
-        pixmap = QPixmap(path)
-        self.image_preview.setPixmap(pixmap)
+    def load_thumbnails(self):
+        # Clear previous thumbnails
+        while self.thumb_layout.count():
+            item = self.thumb_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        for idx, path in enumerate(self.image_paths):
+            label = QLabel()
+            label.setPixmap(QPixmap(path).scaled(75, 75))
+            self.thumb_layout.addWidget(label)
+
+        # Show preview of first image
+        self.update_image_preview(self.image_paths[0])
+        self.process_main_image()
+
+    def process_main_image(self):
+        from services.listing_agent import process_image_and_generate_listing
+        try:
+            self.listing_data = process_image_and_generate_listing(
+                self.image_paths[0])
+            display = "\n".join(
+                [f"{k}: {v}" for k, v in self.listing_data.items()])
+            self.output_label.setText(
+                f"\n📄 Generated Listing Info:\n\n{display}")
+            self.post_button.setEnabled(True)
+        except Exception as e:
+            self.output_label.setText(f"❌ Error: {str(e)}")
+            self.post_button.setEnabled(False)
 
     def post_listing(self):
         from services.listing_agent import post_listing_to_all
