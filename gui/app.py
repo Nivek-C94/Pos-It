@@ -1,4 +1,5 @@
 import sys
+from log.logger import log_event, log_error
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QTextEdit
 
@@ -18,6 +19,7 @@ class PosItApp(QWidget):
         self.image_preview.setScaledContents(True)
 
         self.thumb_layout = QHBoxLayout()
+        self.upload_button = QPushButton("Upload Images")
         self.upload_button.clicked.connect(self.upload_image)
 
         self.post_button = QPushButton("Post")
@@ -26,6 +28,7 @@ class PosItApp(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
+        layout.addWidget(self.upload_button)
         layout.addLayout(self.thumb_layout)
         layout.addWidget(self.image_preview)
         layout.addWidget(self.output_label)
@@ -38,22 +41,24 @@ class PosItApp(QWidget):
             self, "Select Images", "", "Images (*.png *.xpm *.jpg *.jpeg)")
         if files:
             self.image_paths = files
+            log_event(f"Uploaded {len(files)} images")
             self.load_thumbnails()
             self.update_image_preview(files[0])
             try:
                 self.listing_data = process_image_and_generate_listing(
                     files[0])
-                display = "\n".join(
-                    [f"{k}: {v}" for k, v in self.listing_data.items()])
+                log_event("Listing generated from main image")
+                display = "\n".join([
+                    f"{k}: {v}" for k, v in self.listing_data.items()])
                 self.output_label.setText(
                     f"\n📄 Generated Listing Info:\n\n{display}")
                 self.post_button.setEnabled(True)
             except Exception as e:
                 self.output_label.setText(f"❌ Error: {str(e)}")
+                log_error(f"Listing generation failed: {str(e)}")
                 self.post_button.setEnabled(False)
 
     def load_thumbnails(self):
-        # Clear previous thumbnails
         while self.thumb_layout.count():
             item = self.thumb_layout.takeAt(0)
             widget = item.widget()
@@ -79,7 +84,6 @@ class PosItApp(QWidget):
             wrapper.setLayout(thumb_container)
             self.thumb_layout.addWidget(wrapper)
 
-        # Show preview of first image
         self.update_image_preview(self.image_paths[0])
         self.process_main_image()
 
@@ -94,24 +98,28 @@ class PosItApp(QWidget):
         try:
             self.listing_data = process_image_and_generate_listing(
                 self.image_paths[0])
-            display = "\n".join(
-                [f"{k}: {v}" for k, v in self.listing_data.items()])
+            log_event("Listing regenerated after image reorder")
+            display = "\n".join([
+                f"{k}: {v}" for k, v in self.listing_data.items()])
             self.output_label.setText(
                 f"\n📄 Generated Listing Info:\n\n{display}")
             self.post_button.setEnabled(True)
         except Exception as e:
             self.output_label.setText(f"❌ Error: {str(e)}")
+            log_error(f"Listing regeneration failed: {str(e)}")
             self.post_button.setEnabled(False)
 
     def post_listing(self):
         from services.listing_agent import post_listing_to_all
         try:
             results = post_listing_to_all(self.listing_data, self.image_paths)
-            status = "\n\n✅ Post Results:\n" + \
-                "\n".join([f"{k}: {v}" for k, v in results.items()])
+            log_event("Posted listing to all platforms")
+            status = "\n\n✅ Post Results:\n" + "\n".join([
+                f"{k}: {v}" for k, v in results.items()])
             self.output_label.append(status)
         except Exception as e:
             self.output_label.append(f"\n❌ Posting failed: {str(e)}")
+            log_error(f"Posting failed: {str(e)}")
 
 
 if __name__ == "__main__":
