@@ -1,10 +1,9 @@
-from services.image_search import reverse_image_search
-from services.chatgpt_client import ChatGPTClient
 from platforms.ebay.ebay_poster_service import PosterService as EbayPoster
 from platforms.mercari.mercari_poster_service import MercariPosterService
-import tempfile
-import shutil
-import os
+from services.chatgpt_client import ChatGPTClient
+from services.facebook_poster_service import post_to_facebook
+from services.image_search import reverse_image_search
+
 
 def process_image_and_generate_listing(image_path: str) -> dict:
     context = reverse_image_search(image_path)
@@ -12,12 +11,13 @@ def process_image_and_generate_listing(image_path: str) -> dict:
     listing_json = gpt.generate_listing_info(context)
     return listing_json
 
+
 def post_listing_to_all(listing_data: dict, image_paths: list) -> dict:
     results = {}
 
     # eBay
     try:
-        from models.post_item_models import PostItemRequest, PostItemResponse
+        from models.post_item_models import PostItemRequest
         req = PostItemRequest(
             title=listing_data.get("title"),
             price=float(listing_data.get("price", 0)),
@@ -45,5 +45,9 @@ def post_listing_to_all(listing_data: dict, image_paths: list) -> dict:
         results['mercari'] = mercari.post_item()
     except Exception as e:
         results['mercari'] = {"success": False, "error": str(e)}
-
+    # Facebook
+    try:
+        results['facebook'] = post_to_facebook(listing_data, image_paths)
+    except Exception as e:
+        results['facebook'] = {"success": False, "error": str(e)}
     return results
