@@ -61,13 +61,33 @@ class PosItApp(QWidget):
                 widget.setParent(None)
 
         for idx, path in enumerate(self.image_paths):
+            thumb_container = QVBoxLayout()
+
             label = QLabel()
             label.setPixmap(QPixmap(path).scaled(75, 75))
-            self.thumb_layout.addWidget(label)
+            thumb_container.addWidget(label)
+
+            up_button = QPushButton("↑")
+            up_button.clicked.connect(lambda _, i=idx: self.move_image(i, -1))
+            thumb_container.addWidget(up_button)
+
+            down_button = QPushButton("↓")
+            down_button.clicked.connect(lambda _, i=idx: self.move_image(i, 1))
+            thumb_container.addWidget(down_button)
+
+            wrapper = QWidget()
+            wrapper.setLayout(thumb_container)
+            self.thumb_layout.addWidget(wrapper)
 
         # Show preview of first image
         self.update_image_preview(self.image_paths[0])
         self.process_main_image()
+
+    def move_image(self, index, direction):
+        new_index = index + direction
+        if 0 <= new_index < len(self.image_paths):
+            self.image_paths[index], self.image_paths[new_index] = self.image_paths[new_index], self.image_paths[index]
+            self.load_thumbnails()
 
     def process_main_image(self):
         from services.listing_agent import process_image_and_generate_listing
